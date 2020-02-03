@@ -67,3 +67,7 @@ dkms.conf
 .history
 
 # End of https://www.gitignore.io/api/c,visualstudiocode
+
+# Custom
+bin
+# End of Custom

@@ -1,5 +1,9 @@
 PROJECT_NAME := smtp-cli
+<<<<<<< HEAD
 CC        := g++
+=======
+CC        := gcc -gstabs
+>>>>>>> Initial commit
 SRCDIR    := src
 HEADERDIR := include
 BUILDDIR  := build
