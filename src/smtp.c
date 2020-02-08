@@ -42,6 +42,7 @@ void smtpConnect(int sock, struct sockaddr_in* serv_addr)
 
 void smtpReceive(int sock, char buffer[2048])
 {
+    buffer = memset(buffer, 0, sizeof(char) * 2048);
     int n = 0;
     if((n = read(sock, buffer, sizeof(char) * 2048, 0)) < 0)
     {

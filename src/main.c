@@ -69,11 +69,6 @@ int parse_opt(int key, char* arg, struct argp_state* state)
     return 0;
 }
 
-void clearBuffer(char* buffer)
-{
-    buffer = memset(buffer, 0, sizeof(char) * 2048);
-}
-
 int main(int argc, char* argv[])
 {
     // Init email
@@ -119,7 +114,6 @@ int main(int argc, char* argv[])
                 prepareServAddr(email->host, email->port, &serv_addr);
                 smtpConnect(sock, &serv_addr);
 
-                clearBuffer(buffer);
                 smtpReceive(sock, buffer);
                 if(extractResponseCode(buffer) == 220)
                 {
@@ -134,7 +128,6 @@ int main(int argc, char* argv[])
             case HELLO:
                 smtpSend(sock, "EHLO client\n");
 
-                clearBuffer(buffer);
                 smtpReceive(sock, buffer);
                 if(extractResponseCode(buffer) == 250)
                 {
@@ -151,7 +144,6 @@ int main(int argc, char* argv[])
                 smtpSend(sock, toSend);
                 free(toSend);
 
-                clearBuffer(buffer);
                 smtpReceive(sock, buffer);
                 if(extractResponseCode(buffer) == 250)
                 {
@@ -168,7 +160,6 @@ int main(int argc, char* argv[])
                 smtpSend(sock, toSend);
                 free(toSend);
 
-                clearBuffer(buffer);
                 smtpReceive(sock, buffer);
                 if(extractResponseCode(buffer) == 250)
                 {
@@ -183,7 +174,6 @@ int main(int argc, char* argv[])
             case DATA:
                 smtpSend(sock, "DATA\n");
                 
-                clearBuffer(buffer);
                 smtpReceive(sock, buffer);
                 if(extractResponseCode(buffer) == 354)
                 {
@@ -200,7 +190,6 @@ int main(int argc, char* argv[])
                 smtpSend(sock, toSend);
                 free(toSend);
 
-                clearBuffer(buffer);
                 smtpReceive(sock, buffer);
                 if(extractResponseCode(buffer) == 250)
                 {
@@ -215,7 +204,6 @@ int main(int argc, char* argv[])
             case QUIT:
                 smtpSend(sock, "QUIT\n");
 
-                clearBuffer(buffer);
                 smtpReceive(sock, buffer);
                 if(extractResponseCode(buffer) == 221)
                 {
