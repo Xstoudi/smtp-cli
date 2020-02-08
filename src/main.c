@@ -1,10 +1,9 @@
-#include "string.h"
-#include "stdio.h"
-#include "stdlib.h"
-#include "stdbool.h"
-#include "argp.h"
-#include "arpa/inet.h"
-
+#include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdbool.h>
+#include <argp.h>
+#include <arpa/inet.h>
 #include "email.h"
 #include "smtp.h"
 
