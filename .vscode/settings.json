@@ -4,6 +4,10 @@
         "limits.h": "c",
         "climits": "c",
         "stdlib.h": "c",
-        "netdb.h": "c"
+        "netdb.h": "c",
+        "cstdio": "c",
+        "stdbool.h": "c",
+        "argp.h": "c",
+        "string.h": "c"
     }
 }

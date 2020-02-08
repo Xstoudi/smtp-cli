@@ -71,7 +71,7 @@ int extractResponseCode(char buffer[2048])
 
 char* buildCommandWithParam(char* field, char* value)
 {
-    char* builded = calloc((strlen(field) + strlen(value) + 5), sizeof(char));
+    char* builded = calloc((strlen(field) + strlen(value) + 6), sizeof(char));
     strcat(builded, field);
     strcat(builded, ": <");
     strcat(builded, value);
@@ -83,7 +83,7 @@ char* buildData(char* subject, char* body)
 {
     char* subjectHeader = "Subject: ";
     char* finalPoint = "\n.\n";
-    char* data = calloc(strlen(subject) + strlen(body) + strlen(subjectHeader) + 1 + strlen(finalPoint), sizeof(char));
+    char* data = calloc(strlen(subject) + strlen(body) + strlen(subjectHeader) + 1 + strlen(finalPoint) + 1, sizeof(char));
     strcat(data, subjectHeader);
     strcat(data, subject);
     strcat(data, "\n");

@@ -11,3 +11,4 @@ typedef struct StructEmail
 typedef Email* PtrEmail;
 
 PtrEmail initEmail();
+void destructEmail(PtrEmail email);

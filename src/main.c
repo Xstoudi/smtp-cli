@@ -1,9 +1,9 @@
 #include <string.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
 #include <argp.h>
 #include <arpa/inet.h>
+#include <stdio.h>
 #include "email.h"
 #include "smtp.h"
 
@@ -15,13 +15,13 @@ int parse_opt(int key, char* arg, struct argp_state* state)
     switch(key)
     {
         case 't':
-            email->to = arg;
+            strcpy(email->to, arg);
             break;
         case 'f':
-            email->from = arg;
+            strcpy(email->from, arg);
             break;
         case 's':
-            email->subject = arg;
+            strcpy(email->subject, arg);
             break;
         case 'b':
             file = fopen(arg, "r");
@@ -34,9 +34,7 @@ int parse_opt(int key, char* arg, struct argp_state* state)
             int size = ftell(file);
             fseek(file, 0, SEEK_SET);
 
-            printf("\n%i", size);
-
-            char* fileContent = malloc(sizeof(char) * size);
+            char* fileContent = calloc(size + 1, sizeof(char));
             for(int i = 0; i < size; i++)
             {
                 int character = fgetc(file);
@@ -46,11 +44,12 @@ int parse_opt(int key, char* arg, struct argp_state* state)
                     break;
                 }
             }
-            email->body = fileContent;
-            printf("\n%s", email->body);
+            strcpy(email->body, fileContent);
+            fclose(file);
+            free(fileContent);
             break;
         case 'h':
-            email->host = arg;
+            strcpy(email->host, arg);
             break;
         case 'p':
             email->port = atoi(arg);
@@ -79,6 +78,7 @@ int main(int argc, char* argv[])
 {
     // Init email
     PtrEmail email = initEmail();
+    printf("\nTo: %s\nFrom: %s\nSubject: %s\nBody: %s\nHost: %s\nPort: %i", email->to, email->from, email->subject, email->body, email->host, email->port);
 
     // Parsing
     struct argp_option options[] = 
@@ -106,10 +106,10 @@ int main(int argc, char* argv[])
     SMTPState state = CONNECT;
     int sock = 0;
     char buffer[2048] = "";
-
+    char* toSend;
     while(true)
     {
-        printf("\n--> Current State : %i", state);
+        printf("\n--> Current state: %i", state);
         fflush(stdout);
         switch(state)
         {
@@ -128,7 +128,7 @@ int main(int argc, char* argv[])
                 else
                 {
                     printf("--- ERROR TO HANDLE 1 ---");
-                    exit(-1);
+                    goto exitAutomata;
                 }
                 break;
             case HELLO:
@@ -147,8 +147,10 @@ int main(int argc, char* argv[])
                 }
                 break;
             case MAIL_FROM:
-                smtpSend(sock, buildCommandWithParam("MAIL FROM", email->from));
-                
+                toSend = buildCommandWithParam("MAIL FROM", email->from);
+                smtpSend(sock, toSend);
+                free(toSend);
+
                 clearBuffer(buffer);
                 smtpReceive(sock, buffer);
                 if(extractResponseCode(buffer) == 250)
@@ -162,7 +164,9 @@ int main(int argc, char* argv[])
                 }
                 break;
             case RCPT_TO:
-                smtpSend(sock, buildCommandWithParam("RCPT TO", email->to));
+                toSend = buildCommandWithParam("RCPT TO", email->to);
+                smtpSend(sock, toSend);
+                free(toSend);
 
                 clearBuffer(buffer);
                 smtpReceive(sock, buffer);
@@ -192,7 +196,9 @@ int main(int argc, char* argv[])
                 }
                 break;
             case CONTENT:
-                smtpSend(sock, buildData(email->subject, email->body));
+                toSend = buildData(email->subject, email->body);
+                smtpSend(sock, toSend);
+                free(toSend);
 
                 clearBuffer(buffer);
                 smtpReceive(sock, buffer);
@@ -222,8 +228,13 @@ int main(int argc, char* argv[])
                 }
                 break;
             case EXIT:
-                printf("--- EXIT TO HANDLE ---");
-                return 0;
+                goto exitAutomata;
         }
     }
+
+    exitAutomata:
+    destructEmail(email);
+    printf("\n EXIT");
+
+    return 0;
 }

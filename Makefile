@@ -9,12 +9,11 @@ SOURCES   := $(shell find $(SRCDIR) -type f -name *.c*)
 HEDEARS   := $(shell find $(HEADERDIR) -type f -name *.h*)
 OBJECTS   := $(patsubst $(SRCDIR)/%,$(BUILDDIR)/%,$(addsuffix .o,$(basename $(SOURCES))))
 DEPS      := $(patsubst $(SRCDIR)/%,$(BUILDDIR)/%,$(addsuffix .d,$(basename $(SOURCES))))
-CFLAGS    := -Wall -Wextra
+CFLAGS    := -Wall -Wextra -g
 LIB       :=
 INC       := -I include -I src
 
 all: debug
-debug: CFLAGS += -g -gstabs
 debug: $(TARGET)
 release: $(TARGET)
 release: CFLAGS += -O3
