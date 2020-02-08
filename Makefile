@@ -1,5 +1,5 @@
 PROJECT_NAME := smtp-cli
-CC        := gcc -gstabs
+CC        := gcc
 SRCDIR    := src
 HEADERDIR := include
 BUILDDIR  := build
@@ -14,7 +14,7 @@ LIB       :=
 INC       := -I include -I src
 
 all: debug
-debug: CFLAGS += -g
+debug: CFLAGS += -g -gstabs
 debug: $(TARGET)
 release: $(TARGET)
 release: CFLAGS += -O3
