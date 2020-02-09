@@ -74,16 +74,16 @@ char* buildCommandWithParam(char* field, char* value)
 {
     char* builded = calloc((strlen(field) + strlen(value) + 6), sizeof(char));
     strcat(builded, field);
-    strcat(builded, ": <");
+    strcat(builded, ":<");
     strcat(builded, value);
-    strcat(builded, ">\n");
+    strcat(builded, ">\r\n");
     return builded;
 }
 
 char* buildData(char* subject, char* body)
 {
     char* subjectHeader = "Subject: ";
-    char* finalPoint = "\n.\n";
+    char* finalPoint = "\r\n.\r\n";
     char* data = calloc(strlen(subject) + strlen(body) + strlen(subjectHeader) + 1 + strlen(finalPoint) + 1, sizeof(char));
     strcat(data, subjectHeader);
     strcat(data, subject);

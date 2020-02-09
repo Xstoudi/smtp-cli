@@ -73,7 +73,6 @@ int main(int argc, char* argv[])
 {
     // Init email
     PtrEmail email = initEmail();
-    printf("\nTo: %s\nFrom: %s\nSubject: %s\nBody: %s\nHost: %s\nPort: %i", email->to, email->from, email->subject, email->body, email->host, email->port);
 
     // Parsing
     struct argp_option options[] = 
@@ -126,7 +125,7 @@ int main(int argc, char* argv[])
                 }
                 break;
             case HELLO:
-                smtpSend(sock, "EHLO client\n");
+                smtpSend(sock, "HELO client\r\n");
 
                 smtpReceive(sock, buffer);
                 if(extractResponseCode(buffer) == 250)
@@ -163,16 +162,18 @@ int main(int argc, char* argv[])
                 smtpReceive(sock, buffer);
                 if(extractResponseCode(buffer) == 250)
                 {
+                    // Accept 251 too
                     state++;
                 }
                 else
                 {
                     printf("--- ERROR TO HANDLE 4 ---");
+                    // Handle 551
                     exit(-1);
                 }
                 break;
             case DATA:
-                smtpSend(sock, "DATA\n");
+                smtpSend(sock, "DATA\r\n");
                 
                 smtpReceive(sock, buffer);
                 if(extractResponseCode(buffer) == 354)
@@ -202,7 +203,7 @@ int main(int argc, char* argv[])
                 }
                 break;
             case QUIT:
-                smtpSend(sock, "QUIT\n");
+                smtpSend(sock, "QUIT\r\n");
 
                 smtpReceive(sock, buffer);
                 if(extractResponseCode(buffer) == 221)
