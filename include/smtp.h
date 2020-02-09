@@ -10,9 +10,9 @@ typedef enum EnumSMTPState {
 } SMTPState;
 
 int initSocket();
-void prepareServAddr(char* host, int port, struct sockaddr_in* serv_addr);
-void smtpConnect(int sock, struct sockaddr_in* serv_addr);
-void smtpReceive(int sock, char buffer[2048]);
+int prepareServAddr(char* host, int port, struct sockaddr_in* serv_addr);
+int smtpConnect(int sock, struct sockaddr_in* serv_addr);
+int smtpReceive(int sock, char buffer[2048]);
 void smtpSend(int sock, char* buffer);
 int extractResponseCode(char buffer[2048]);
 char* buildCommandWithParam(char* field, char* value);

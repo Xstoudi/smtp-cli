@@ -28,13 +28,26 @@ int parse_opt(int key, char* arg, struct argp_state* state)
             if(file == NULL)
             {
                 printf("\n%s not found.", arg);
-                exit(-1);
+                return 1;
             }
-            fseek(file, 0, SEEK_END);
+            if(fseek(file, 0, SEEK_END) != 0)
+            {
+                printf("Fail to seek file size.");
+                return 1;
+            }
             int size = ftell(file);
-            fseek(file, 0, SEEK_SET);
+            if(fseek(file, 0, SEEK_SET) != 0)
+            {
+                printf("Fail to seek file size.");
+                return 1;
+            }
 
             char* fileContent = calloc(size + 1, sizeof(char));
+            if(fileContent == NULL)
+            {
+                printf("Fail to allocate memory for file content.");
+                return 1;
+            }
             for(int i = 0; i < size; i++)
             {
                 int character = fgetc(file);
@@ -45,7 +58,11 @@ int parse_opt(int key, char* arg, struct argp_state* state)
                 }
             }
             strcpy(email->body, fileContent);
-            fclose(file);
+            if(fclose(file) != 0)
+            {
+                printf("Fail to close file content stream.");
+                return 1;
+            }
             free(fileContent);
             break;
         case 'h':
@@ -72,7 +89,12 @@ int parse_opt(int key, char* arg, struct argp_state* state)
 int main(int argc, char* argv[])
 {
     // Init email
-    PtrEmail email = initEmail();
+    PtrEmail email;
+    if(initEmail(&email) != 0)
+    {
+        printf("\nFail to init email.");
+        return 1;
+    }
 
     // Parsing
     struct argp_option options[] = 
@@ -87,7 +109,11 @@ int main(int argc, char* argv[])
     };
 
     struct argp argp = { options, parse_opt, NULL, NULL, NULL, NULL, NULL };
-    argp_parse(&argp, argc, argv, ARGP_IN_ORDER, 0, email);
+    if(argp_parse(&argp, argc, argv, ARGP_IN_ORDER, 0, email) != 0)
+    {
+        printf("\nFail to parse command line arguments.");
+        return 1;
+    }
 
     printf("\nTo: %s\nFrom: %s\nSubject: %s\nBody: %s\nHost: %s\nPort: %i", email->to, email->from, email->subject, email->body, email->host, email->port);
     
@@ -109,112 +135,101 @@ int main(int argc, char* argv[])
         {
             case CONNECT:
                 sock = initSocket();
-                struct sockaddr_in serv_addr;
-                prepareServAddr(email->host, email->port, &serv_addr);
-                smtpConnect(sock, &serv_addr);
-
-                smtpReceive(sock, buffer);
-                if(extractResponseCode(buffer) == 220)
+                if(sock < 0)
                 {
-                    state++;
+                    printf("\nSocket initialization error.");
+                    return 1;
                 }
-                else
+                printf("\nSuccessfully initializated socket.");
+
+                struct sockaddr_in serv_addr;
+                if(prepareServAddr(email->host, email->port, &serv_addr) <= 0)
+                {
+                    printf("\nFailed to prepare servaddr.");
+                    return 1;
+                }
+                printf("\nSuccessfully prepared servaddr.");
+
+                if(smtpConnect(sock, &serv_addr) < 0)
+                {
+                    printf("\nFailed to connect to SMTP server.");
+                    return 1;
+                }
+                printf("\nSuccessfully connected to SMTP server.");
+                fflush(stdout);
+
+                if(smtpReceive(sock, buffer) <= 0 || extractResponseCode(buffer) != 220)
                 {
                     printf("--- ERROR TO HANDLE 1 ---");
                     goto exitAutomata;
                 }
+                state++;
                 break;
             case HELLO:
                 smtpSend(sock, "HELO client\r\n");
 
-                smtpReceive(sock, buffer);
-                if(extractResponseCode(buffer) == 250)
-                {
-                    state++;
-                }
-                else
+                if(smtpReceive(sock, buffer) <= 0 || extractResponseCode(buffer) != 250)
                 {
                     printf("--- ERROR TO HANDLE 2 ---");
-                    exit(-1);
+                    goto exitAutomata;
                 }
+                state++;
                 break;
             case MAIL_FROM:
                 toSend = buildCommandWithParam("MAIL FROM", email->from);
                 smtpSend(sock, toSend);
                 free(toSend);
 
-                smtpReceive(sock, buffer);
-                if(extractResponseCode(buffer) == 250)
-                {
-                    state++;
-                }
-                else
+                if(smtpReceive(sock, buffer) <= 0 || extractResponseCode(buffer) != 250)
                 {
                     printf("--- ERROR TO HANDLE 3 ---");
-                    exit(-1);
+                    goto exitAutomata;
                 }
+                state++;
                 break;
             case RCPT_TO:
                 toSend = buildCommandWithParam("RCPT TO", email->to);
                 smtpSend(sock, toSend);
                 free(toSend);
 
-                smtpReceive(sock, buffer);
-                if(extractResponseCode(buffer) == 250)
-                {
-                    // Accept 251 too
-                    state++;
-                }
-                else
+                if(smtpReceive(sock, buffer) <= 0 || extractResponseCode(buffer) != 250)
                 {
                     printf("--- ERROR TO HANDLE 4 ---");
-                    // Handle 551
-                    exit(-1);
+                    goto exitAutomata;
                 }
+                state++;
                 break;
             case DATA:
                 smtpSend(sock, "DATA\r\n");
                 
-                smtpReceive(sock, buffer);
-                if(extractResponseCode(buffer) == 354)
-                {
-                    state++;
-                }
-                else
+                if(smtpReceive(sock, buffer) <= 0 || extractResponseCode(buffer) != 354)
                 {
                     printf("--- ERROR TO HANDLE 5 ---");
-                    exit(-1);
+                    goto exitAutomata;
                 }
+                state++;
                 break;
             case CONTENT:
                 toSend = buildData(email->subject, email->body);
                 smtpSend(sock, toSend);
                 free(toSend);
 
-                smtpReceive(sock, buffer);
-                if(extractResponseCode(buffer) == 250)
-                {
-                    state++;
-                }
-                else
+                if(smtpReceive(sock, buffer) <= 0 || extractResponseCode(buffer) != 250)
                 {
                     printf("--- ERROR TO HANDLE 6 ---");
-                    exit(-1);
+                    goto exitAutomata;
                 }
+                state++;
                 break;
             case QUIT:
                 smtpSend(sock, "QUIT\r\n");
 
-                smtpReceive(sock, buffer);
-                if(extractResponseCode(buffer) == 221)
+                if(smtpReceive(sock, buffer) <= 0 || extractResponseCode(buffer) != 221)
                 {
-                    state++;
+                    printf("--- ERROR TO HANDLE 7 ---");
+                    goto exitAutomata;
                 }
-                else
-                {
-                    printf("--- ERROR TO HANDLE 7");
-                    exit(-1);
-                }
+                state++;
                 break;
             case EXIT:
                 goto exitAutomata;

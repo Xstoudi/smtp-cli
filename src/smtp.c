@@ -7,55 +7,30 @@
 
 int initSocket()
 {
-    int sock = 0;
-    if((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
-    {
-        printf("\n Socket init error.");
-        exit(-1);
-    }
-    printf("\nSocket created.");
-    return sock;
+    return socket(AF_INET, SOCK_STREAM, 0);
 }
 
-void prepareServAddr(char* host, int port, struct sockaddr_in* serv_addr)
+int prepareServAddr(char* host, int port, struct sockaddr_in* serv_addr)
 {
     serv_addr->sin_family = AF_INET;
     serv_addr->sin_port = htons(port);
-    if(inet_pton(AF_INET, host, &serv_addr->sin_addr) <= 0)
-    {
-        printf("\nAddress invalid or not supported.");
-        exit(-1);
-    }
-    printf("\nHost and port are valid.");
+    return inet_pton(AF_INET, host, &serv_addr->sin_addr);
 }
 
-void smtpConnect(int sock, struct sockaddr_in* serv_addr)
+int smtpConnect(int sock, struct sockaddr_in* serv_addr)
 {
-    if(connect(sock, (struct sockaddr*)serv_addr, sizeof(struct sockaddr)) < 0)
-    {
-        printf("\nConnection failed.");
-        exit(-1);
-    }
-    printf("\nConnected to server");
-    fflush(stdout);
+    return connect(sock, (struct sockaddr*)serv_addr, sizeof(struct sockaddr));
 }
 
-void smtpReceive(int sock, char buffer[2048])
+int smtpReceive(int sock, char buffer[2048])
 {
     buffer = memset(buffer, 0, sizeof(char) * 2048);
-    int n = 0;
-    if((n = read(sock, buffer, sizeof(char) * 2048, 0)) < 0)
+    int result = read(sock, buffer, sizeof(char) * 2048, 0);
+    if(result <= 0)
     {
-        printf("\nFail on receive.");
-        exit(-1);
+        printf("\nDisconnected from server.");
     }
-    if(n == 0)
-    {
-        printf("\nServer disconnected");
-        exit(-1);
-    }
-    printf("\n\"%s\"", buffer);
-    fflush(stdout);
+    return result;
 }
 
 void smtpSend(int sock, char* buffer)

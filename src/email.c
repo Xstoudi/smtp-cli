@@ -15,16 +15,27 @@
 // REF: $ getconf HOST_NAME_MAX
 #define MAX_HOSTNAME_SIZE 64
 
-PtrEmail initEmail()
+int initEmail(PtrEmail* emailPtr)
 {
-    PtrEmail email = malloc(sizeof(Email));
+    *emailPtr = malloc(sizeof(Email));
+    PtrEmail email = *emailPtr;
     email->to = (char*) calloc((MAX_EMAIL_ADDR_SIZE + 1), sizeof(char));
     email->from = (char*) calloc((MAX_EMAIL_ADDR_SIZE + 1), sizeof(char));
     email->subject = (char*) calloc((MAX_SUBJECT_SIZE + 1), sizeof(char));
     email->body = (char*) calloc((MAX_BODY_SIZE + 1), sizeof(char));
     email->host = (char*) calloc((MAX_HOSTNAME_SIZE + 1), sizeof(char));
     email->port = 25;
-    return email;
+    if(
+        email->to == NULL ||
+        email->from == NULL ||
+        email->subject == NULL ||
+        email->body == NULL ||
+        email->host == NULL
+    )
+    {
+        return 1;
+    }
+    return 0;
 }
 
 void destructEmail(PtrEmail email)
