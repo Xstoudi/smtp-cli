@@ -1,0 +1,1 @@
+bool isValidIP(char* ipAddress);

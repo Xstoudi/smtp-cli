@@ -6,12 +6,13 @@
 #include <stdio.h>
 #include "email.h"
 #include "smtp.h"
+#include "utils.h"
+#include "dns.h"
 
 int parse_opt(int key, char* arg, struct argp_state* state)
 {
     FILE* file = NULL;
     PtrEmail email = state->input;
- //   printf("\n%c <--> %s", key, arg);
     switch(key)
     {
         case 't':
@@ -32,20 +33,20 @@ int parse_opt(int key, char* arg, struct argp_state* state)
             }
             if(fseek(file, 0, SEEK_END) != 0)
             {
-                printf("Fail to seek file size.");
+                printf("\nFail to seek file size.");
                 return 1;
             }
             int size = ftell(file);
             if(fseek(file, 0, SEEK_SET) != 0)
             {
-                printf("Fail to seek file size.");
+                printf("\nFail to seek file size.");
                 return 1;
             }
 
             char* fileContent = calloc(size + 1, sizeof(char));
             if(fileContent == NULL)
             {
-                printf("Fail to allocate memory for file content.");
+                printf("\nFail to allocate memory for file content.");
                 return 1;
             }
             for(int i = 0; i < size; i++)
@@ -60,14 +61,34 @@ int parse_opt(int key, char* arg, struct argp_state* state)
             strcpy(email->body, fileContent);
             if(fclose(file) != 0)
             {
-                printf("Fail to close file content stream.");
+                printf("\nFail to close file content stream.");
                 return 1;
             }
             free(fileContent);
             break;
         case 'h':
-            strcpy(email->host, arg);
-            break;
+            {
+                char* ipToCheck = calloc(16, sizeof(char));
+                strcpy(ipToCheck, arg);
+                if(isValidIP(arg) == true)
+                {
+                    strcpy(email->host, ipToCheck);
+                }
+                else
+                {
+                    char* ip = calloc(16, sizeof(char));
+                    if(hostnameToIP(ipToCheck, ip) != 0)
+                    {
+                        printf("\nFail to parse host.");
+                        return 1;
+                    }
+                    printf("\n%s", ip);
+                    strcpy(email->host, ip);
+                    free(ip);
+                }
+                free(ipToCheck);
+                break;
+            }
         case 'p':
             email->port = atoi(arg);
             break;
@@ -116,7 +137,7 @@ int main(int argc, char* argv[])
     }
 
     printf("\nTo: %s\nFrom: %s\nSubject: %s\nBody: %s\nHost: %s\nPort: %i", email->to, email->from, email->subject, email->body, email->host, email->port);
-    
+
     // Port argument is optional
     if(email->port == 0)
     {
@@ -237,8 +258,8 @@ int main(int argc, char* argv[])
     }
 
     exitAutomata:
-    destructEmail(email);
-    printf("\n EXIT");
+        destructEmail(email);
+        printf("\n EXIT");
 
     return 0;
 }

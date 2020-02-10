@@ -8,6 +8,7 @@
         "cstdio": "c",
         "stdbool.h": "c",
         "argp.h": "c",
-        "string.h": "c"
+        "string.h": "c",
+        "stdio.h": "c"
     }
 }
