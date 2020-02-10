@@ -14,6 +14,6 @@ int prepareServAddr(char* host, int port, struct sockaddr_in* serv_addr);
 int smtpConnect(int sock, struct sockaddr_in* serv_addr);
 int smtpReceive(int sock, char buffer[2048]);
 void smtpSend(int sock, char* buffer);
-int extractResponseCode(char buffer[2048]);
+void extractResponse(char buffer[2048], int* responseCode);
 char* buildCommandWithParam(char* field, char* value);
 char* buildData(char* subject, char* body);

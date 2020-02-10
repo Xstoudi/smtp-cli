@@ -35,14 +35,26 @@ int smtpReceive(int sock, char buffer[2048])
 
 void smtpSend(int sock, char* buffer)
 {
+    printf("\nE: %s", buffer);
     send(sock, buffer, strlen(buffer), 0);
 }
 
-int extractResponseCode(char buffer[2048])
+void extractResponse(char buffer[2048], int* responseCode)
 {
     char strCode[3] = "";
     strncpy(strCode, buffer, 3);
-    return atoi(strCode);
+    *responseCode = atoi(strCode);
+    int length = strlen(buffer) - 5;
+    if(length > 0)
+    {
+        memcpy(buffer, buffer + 4, length);
+        buffer[length] = '\0';
+    }
+    else
+    {
+        buffer = memset(buffer, 0, sizeof(char) * 2048);
+    }
+    printf("\nR: %i - %s", *responseCode, buffer);
 }
 
 char* buildCommandWithParam(char* field, char* value)

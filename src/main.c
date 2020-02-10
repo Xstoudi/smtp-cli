@@ -82,7 +82,6 @@ int parse_opt(int key, char* arg, struct argp_state* state)
                         printf("\nFail to parse host.");
                         return 1;
                     }
-                    printf("\n%s", ip);
                     strcpy(email->host, ip);
                     free(ip);
                 }
@@ -148,10 +147,10 @@ int main(int argc, char* argv[])
     int sock = 0;
     char buffer[2048] = "";
     char* toSend;
+    int responseCode = 0;
+
     while(true)
     {
-        printf("\n--> Current state: %i", state);
-        fflush(stdout);
         switch(state)
         {
             case CONNECT:
@@ -179,87 +178,154 @@ int main(int argc, char* argv[])
                 printf("\nSuccessfully connected to SMTP server.");
                 fflush(stdout);
 
-                if(smtpReceive(sock, buffer) <= 0 || extractResponseCode(buffer) != 220)
+                if(smtpReceive(sock, buffer) <= 0)
                 {
-                    printf("--- ERROR TO HANDLE 1 ---");
-                    goto exitAutomata;
+                    state = EXIT;
+                    continue;
                 }
-                state++;
+                
+                extractResponse(buffer, &responseCode);
+                if(responseCode == 220)
+                {
+                    state++;
+                }
+                else if(responseCode == 554)
+                {
+                    printf("\nNo SMTP service here: %s:%i", email->host, email->port);
+                    state = EXIT;
+                    continue;
+                }
+                else
+                {
+                    state = EXIT;
+                    continue;
+                }
                 break;
             case HELLO:
                 smtpSend(sock, "HELO client\r\n");
 
-                if(smtpReceive(sock, buffer) <= 0 || extractResponseCode(buffer) != 250)
+                if(smtpReceive(sock, buffer) <= 0)
                 {
-                    printf("--- ERROR TO HANDLE 2 ---");
-                    goto exitAutomata;
+                    state = EXIT;
+                    continue;
                 }
-                state++;
+
+                extractResponse(buffer, &responseCode);
+                if(responseCode == 250)
+                {
+                    state++;
+                }
+                else
+                {
+                    state = EXIT;
+                }
                 break;
             case MAIL_FROM:
                 toSend = buildCommandWithParam("MAIL FROM", email->from);
                 smtpSend(sock, toSend);
                 free(toSend);
 
-                if(smtpReceive(sock, buffer) <= 0 || extractResponseCode(buffer) != 250)
+                if(smtpReceive(sock, buffer) <= 0)
                 {
-                    printf("--- ERROR TO HANDLE 3 ---");
                     goto exitAutomata;
                 }
-                state++;
+
+                extractResponse(buffer, &responseCode);
+                if(responseCode == 250)
+                {
+                    state++;
+                }
+                else
+                {
+                    state = EXIT;
+                }
                 break;
             case RCPT_TO:
                 toSend = buildCommandWithParam("RCPT TO", email->to);
                 smtpSend(sock, toSend);
                 free(toSend);
 
-                if(smtpReceive(sock, buffer) <= 0 || extractResponseCode(buffer) != 250)
+                if(smtpReceive(sock, buffer) <= 0)
                 {
-                    printf("--- ERROR TO HANDLE 4 ---");
                     goto exitAutomata;
                 }
-                state++;
+
+                extractResponse(buffer, &responseCode);
+                if(responseCode == 250 || responseCode == 251)
+                {
+                    state++;
+                }
+                else
+                {
+                    state = EXIT;
+                }
                 break;
             case DATA:
                 smtpSend(sock, "DATA\r\n");
                 
-                if(smtpReceive(sock, buffer) <= 0 || extractResponseCode(buffer) != 354)
+                if(smtpReceive(sock, buffer) <= 0)
                 {
-                    printf("--- ERROR TO HANDLE 5 ---");
                     goto exitAutomata;
                 }
-                state++;
+
+                extractResponse(buffer, &responseCode);
+                if(responseCode == 354)
+                {
+                    state++;
+                }
+                else
+                {
+                    state = EXIT;
+                }
                 break;
             case CONTENT:
                 toSend = buildData(email->subject, email->body);
                 smtpSend(sock, toSend);
                 free(toSend);
 
-                if(smtpReceive(sock, buffer) <= 0 || extractResponseCode(buffer) != 250)
+                if(smtpReceive(sock, buffer) <= 0)
                 {
-                    printf("--- ERROR TO HANDLE 6 ---");
                     goto exitAutomata;
                 }
-                state++;
+
+                extractResponse(buffer, &responseCode);
+                if(responseCode == 250)
+                {
+                    state++;
+                }
+                else
+                {
+                    state = EXIT;
+                }
                 break;
             case QUIT:
                 smtpSend(sock, "QUIT\r\n");
 
-                if(smtpReceive(sock, buffer) <= 0 || extractResponseCode(buffer) != 221)
+                if(smtpReceive(sock, buffer) <= 0)
                 {
-                    printf("--- ERROR TO HANDLE 7 ---");
                     goto exitAutomata;
                 }
-                state++;
+
+                extractResponse(buffer, &responseCode);
+                if(responseCode == 221)
+                {
+                    state++;
+                }
+                else
+                {
+                    state = EXIT;
+                }
                 break;
             case EXIT:
+                goto exitAutomata;
+            default:
+                printf("\nInvalid state: %i", state);
                 goto exitAutomata;
         }
     }
 
     exitAutomata:
-        destructEmail(email);
-        printf("\n EXIT");
+    destructEmail(email);
 
     return 0;
 }
