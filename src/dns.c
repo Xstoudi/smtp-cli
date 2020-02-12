@@ -15,10 +15,10 @@ int hostnameToIP(char* hostname , char* ip)
     hints.ai_socktype = SOCK_STREAM;
     
     int error = getaddrinfo(hostname, NULL, &hints, &result);
-    if(error != 0)
+    if(error == 0)
     {
-        return -1;
+        error = getnameinfo(result->ai_addr, result->ai_addrlen, ip, 16, NULL, 0, NI_NUMERICHOST);
     }
-    error = getnameinfo(result->ai_addr, result->ai_addrlen, ip, 16, NULL, 0, NI_NUMERICHOST);
+    freeaddrinfo(result);
     return error;
 }

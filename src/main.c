@@ -69,7 +69,7 @@ int parse_opt(int key, char* arg, struct argp_state* state)
             break;
         case 'h':
             {
-                char* ipToCheck = calloc(16, sizeof(char));
+                char* ipToCheck = calloc(strlen(arg) + 1, sizeof(char));
                 strcpy(ipToCheck, arg);
                 if(isValidIP(arg) == true)
                 {
@@ -150,7 +150,8 @@ int main(int argc, char* argv[])
     char* toSend;
     int responseCode = 0;
 
-    while(true)
+    bool continueAutomataLoop = true;
+    while(continueAutomataLoop == true)
     {
         switch(state)
         {
@@ -159,7 +160,8 @@ int main(int argc, char* argv[])
                 if(sock < 0)
                 {
                     printf("\nSocket initialization error.");
-                    return 1;
+                    state = EXIT;
+                    continue;
                 }
                 printf("\nSuccessfully initializated socket.");
 
@@ -167,14 +169,16 @@ int main(int argc, char* argv[])
                 if(prepareServAddr(email->host, email->port, &serv_addr) <= 0)
                 {
                     printf("\nFailed to prepare servaddr.");
-                    return 1;
+                    state = EXIT;
+                    continue;
                 }
                 printf("\nSuccessfully prepared servaddr.");
 
                 if(smtpConnect(sock, &serv_addr) < 0)
                 {
                     printf("\nFailed to connect to SMTP server.");
-                    return 1;
+                    state = EXIT;
+                    continue;
                 }
                 printf("\nSuccessfully connected to SMTP server.");
                 fflush(stdout);
@@ -228,7 +232,8 @@ int main(int argc, char* argv[])
 
                 if(smtpReceive(sock, buffer) <= 0)
                 {
-                    goto exitAutomata;
+                    state = EXIT;
+                    continue;
                 }
 
                 extractResponse(buffer, &responseCode);
@@ -248,7 +253,8 @@ int main(int argc, char* argv[])
 
                 if(smtpReceive(sock, buffer) <= 0)
                 {
-                    goto exitAutomata;
+                    state = EXIT;
+                    continue;
                 }
 
                 extractResponse(buffer, &responseCode);
@@ -273,7 +279,8 @@ int main(int argc, char* argv[])
                 
                 if(smtpReceive(sock, buffer) <= 0)
                 {
-                    goto exitAutomata;
+                    state = EXIT;
+                    continue;
                 }
 
                 extractResponse(buffer, &responseCode);
@@ -293,7 +300,8 @@ int main(int argc, char* argv[])
 
                 if(smtpReceive(sock, buffer) <= 0)
                 {
-                    goto exitAutomata;
+                    state = EXIT;
+                    continue;
                 }
 
                 extractResponse(buffer, &responseCode);
@@ -311,7 +319,8 @@ int main(int argc, char* argv[])
 
                 if(smtpReceive(sock, buffer) <= 0)
                 {
-                    goto exitAutomata;
+                    state = EXIT;
+                    continue;
                 }
 
                 extractResponse(buffer, &responseCode);
@@ -325,14 +334,14 @@ int main(int argc, char* argv[])
                 }
                 break;
             case EXIT:
-                goto exitAutomata;
+                continueAutomataLoop = false;
+                break;
             default:
                 printf("\nInvalid state: %i", state);
-                goto exitAutomata;
+                continueAutomataLoop = false;
         }
     }
 
-    exitAutomata:
     destructEmail(email);
 
     return 0;
