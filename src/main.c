@@ -4,6 +4,7 @@
 #include <argp.h>
 #include <arpa/inet.h>
 #include <stdio.h>
+#include <unistd.h>
 #include "email.h"
 #include "smtp.h"
 #include "utils.h"
@@ -254,6 +255,13 @@ int main(int argc, char* argv[])
                 if(responseCode == 250 || responseCode == 251)
                 {
                     state++;
+                }
+                else if(responseCode == 450)
+                {
+                    printf("We're greylisted. Will retry in 60 seconds.");
+                    fflush(stdout);
+                    state = HELLO;
+                    sleep(60);
                 }
                 else
                 {
