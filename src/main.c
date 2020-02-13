@@ -117,6 +117,9 @@ int main(int argc, char* argv[])
         return 1;
     }
 
+    argp_program_version = "1.0.0";
+    argp_program_bug_address = "xavier.stouder@he-arc.ch";
+
     // Parsing
     struct argp_option options[] = 
     {
