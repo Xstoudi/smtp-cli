@@ -4,28 +4,29 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 
 int initSocket()
 {
     return socket(AF_INET, SOCK_STREAM, 0);
 }
 
-int prepareServAddr(char* host, int port, struct sockaddr_in* serv_addr)
+int prepareServAddr(char* host, int port, struct sockaddr_in* servAddr)
 {
-    serv_addr->sin_family = AF_INET;
-    serv_addr->sin_port = htons(port);
-    return inet_pton(AF_INET, host, &serv_addr->sin_addr);
+    servAddr->sin_family = AF_INET;
+    servAddr->sin_port = htons(port);
+    return inet_pton(AF_INET, host, &servAddr->sin_addr);
 }
 
-int smtpConnect(int sock, struct sockaddr_in* serv_addr)
+int smtpConnect(int sock, struct sockaddr_in* servAddr)
 {
-    return connect(sock, (struct sockaddr*)serv_addr, sizeof(struct sockaddr));
+    return connect(sock, (struct sockaddr*)servAddr, sizeof(struct sockaddr));
 }
 
 int smtpReceive(int sock, char buffer[2048])
 {
     buffer = memset(buffer, 0, sizeof(char) * 2048);
-    int result = read(sock, buffer, sizeof(char) * 2048, 0);
+    int result = read(sock, buffer, sizeof(char) * 2048);
     if(result <= 0)
     {
         printf("\nDisconnected from server.");
@@ -35,7 +36,14 @@ int smtpReceive(int sock, char buffer[2048])
 
 void smtpSend(int sock, char* buffer)
 {
-    printf("\nE: %s", buffer);
+    if(getenv("DEBUG"))
+    {
+        printf("\nE: %s", buffer);
+    }
+    else
+    {
+        printf(".");
+    }
     send(sock, buffer, strlen(buffer), 0);
 }
 
@@ -54,7 +62,14 @@ void extractResponse(char buffer[2048], int* responseCode)
     {
         buffer = memset(buffer, 0, sizeof(char) * 2048);
     }
-    printf("\nR: %i - %s", *responseCode, buffer);
+    if(getenv("DEBUG"))
+    {
+        printf("\nR: %i - %s", *responseCode, buffer);
+    }
+    else
+    {
+        printf(".");
+    }
 }
 
 char* buildCommandWithParam(char* field, char* value)

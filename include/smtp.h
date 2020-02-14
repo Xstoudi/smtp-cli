@@ -7,15 +7,16 @@ typedef enum EnumSMTPState {
     DATA,
     CONTENT,
     QUIT,
-    EXIT
+    EXIT,
+    CRITICAL_ERROR
 } SMTPState;
 
 /* Socket initialization. Returns 0 if successful. */
 int initSocket();
 /* Prepare server address structure. Returns 0 if successful. */
-int prepareServAddr(char* host, int port, struct sockaddr_in* serv_addr);
+int prepareServAddr(char* host, int port, struct sockaddr_in* servAddr);
 /* Connect to SMTP server. Returns 0 if successful. */
-int smtpConnect(int sock, struct sockaddr_in* serv_addr);
+int smtpConnect(int sock, struct sockaddr_in* servAddr);
 /* Receive datas from SMTP socket. Returns N bytes received. */
 int smtpReceive(int sock, char buffer[2048]);
 /* Send datas in the SMTP socket. */

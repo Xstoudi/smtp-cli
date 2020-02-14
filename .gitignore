@@ -93,9 +93,6 @@ dkms.conf
 # *.iml
 # *.ipr
 
-# CMake
-cmake-build-*/
-
 # Mongo Explorer plugin
 .idea/**/mongoSettings.xml
 

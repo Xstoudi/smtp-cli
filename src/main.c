@@ -7,7 +7,6 @@
 #include <unistd.h>
 #include "email.h"
 #include "smtp.h"
-#include "utils.h"
 #include "dns.h"
 
 int parse_opt(int key, char* arg, struct argp_state* state)
@@ -109,6 +108,8 @@ int parse_opt(int key, char* arg, struct argp_state* state)
 
 int main(int argc, char* argv[])
 {
+    int exitCode = 0;
+
     // Init email
     PtrEmail email;
     if(initEmail(&email) != 0)
@@ -136,216 +137,225 @@ int main(int argc, char* argv[])
     if(argp_parse(&argp, argc, argv, ARGP_IN_ORDER, 0, email) != 0)
     {
         printf("\nFail to parse command line arguments.");
-        return 1;
+        exitCode = 1;
     }
-
-    printf("\nTo: %s\nFrom: %s\nSubject: %s\nBody: %s\nHost: %s\nPort: %i", email->to, email->from, email->subject, email->body, email->host, email->port);
-
-    // Port argument is optional
-    if(email->port == 0)
+    else
     {
-        email->port = 25;
-    }
-
-    SMTPState state = CONNECT;
-    int sock = 0;
-    char buffer[2048] = "";
-    char* toSend;
-    int responseCode = 0;
-
-    bool continueAutomataLoop = true;
-    while(continueAutomataLoop == true)
-    {
-        switch(state)
+        if(getenv("DEBUG"))
         {
-            case CONNECT:
-                sock = initSocket();
-                if(sock < 0)
-                {
-                    printf("\nSocket initialization error.");
-                    state = EXIT;
-                    continue;
-                }
-                printf("\nSuccessfully initializated socket.");
+            printf("\nTo: %s\nFrom: %s\nSubject: %s\nBody: %s\nHost: %s\nPort: %i", email->to, email->from, email->subject, email->body, email->host, email->port);
+        }
 
-                struct sockaddr_in serv_addr;
-                if(prepareServAddr(email->host, email->port, &serv_addr) <= 0)
-                {
-                    printf("\nFailed to prepare servaddr.");
-                    state = EXIT;
-                    continue;
-                }
-                printf("\nSuccessfully prepared servaddr.");
+        // Port argument is optional
+        if(email->port == 0)
+        {
+            email->port = 25;
+        }
 
-                if(smtpConnect(sock, &serv_addr) < 0)
-                {
-                    printf("\nFailed to connect to SMTP server.");
-                    state = EXIT;
-                    continue;
-                }
-                printf("\nSuccessfully connected to SMTP server.");
-                fflush(stdout);
+        SMTPState state = CONNECT;
+        int sock = 0;
+        char buffer[2048] = "";
+        char* toSend;
+        int responseCode = 0;
 
-                if(smtpReceive(sock, buffer) <= 0)
-                {
-                    state = EXIT;
-                    continue;
-                }
-                
-                extractResponse(buffer, &responseCode);
-                if(responseCode == 220)
-                {
-                    state++;
-                }
-                else if(responseCode == 554)
-                {
-                    printf("\nNo SMTP service here: %s:%i", email->host, email->port);
-                    state = EXIT;
-                    continue;
-                }
-                else
-                {
-                    state = EXIT;
-                    continue;
-                }
-                break;
-            case HELLO:
-                smtpSend(sock, "HELO client\r\n");
+        bool continueAutomataLoop = true;
+        while(continueAutomataLoop == true)
+        {
+            switch(state)
+            {
+                case CONNECT:
+                    sock = initSocket();
+                    if(sock < 0)
+                    {
+                        printf("\nSocket initialization error.");
+                        state = CRITICAL_ERROR;
+                        continue;
+                    }
+                    printf("\nSuccessfully initializated socket.");
 
-                if(smtpReceive(sock, buffer) <= 0)
-                {
-                    state = EXIT;
-                    continue;
-                }
+                    struct sockaddr_in servAddr;
+                    if(prepareServAddr(email->host, email->port, &servAddr) <= 0)
+                    {
+                        printf("\nFailed to prepare servaddr.");
+                        state = CRITICAL_ERROR;
+                        continue;
+                    }
+                    printf("\nSuccessfully prepared servaddr.");
 
-                extractResponse(buffer, &responseCode);
-                if(responseCode == 250)
-                {
-                    state++;
-                }
-                else
-                {
-                    state = EXIT;
-                }
-                break;
-            case MAIL_FROM:
-                toSend = buildCommandWithParam("MAIL FROM", email->from);
-                smtpSend(sock, toSend);
-                free(toSend);
-
-                if(smtpReceive(sock, buffer) <= 0)
-                {
-                    state = EXIT;
-                    continue;
-                }
-
-                extractResponse(buffer, &responseCode);
-                if(responseCode == 250)
-                {
-                    state++;
-                }
-                else
-                {
-                    state = EXIT;
-                }
-                break;
-            case RCPT_TO:
-                toSend = buildCommandWithParam("RCPT TO", email->to);
-                smtpSend(sock, toSend);
-                free(toSend);
-
-                if(smtpReceive(sock, buffer) <= 0)
-                {
-                    state = EXIT;
-                    continue;
-                }
-
-                extractResponse(buffer, &responseCode);
-                if(responseCode == 250 || responseCode == 251)
-                {
-                    state++;
-                }
-                else if(responseCode == 450)
-                {
-                    printf("We're greylisted. Will retry in 60 seconds.");
+                    if(smtpConnect(sock, &servAddr) < 0)
+                    {
+                        printf("\nFailed to connect to SMTP server.");
+                        state = CRITICAL_ERROR;
+                        continue;
+                    }
+                    printf("\nSuccessfully connected to SMTP server.");
                     fflush(stdout);
-                    state = HELLO;
-                    sleep(60);
-                }
-                else
-                {
-                    state = EXIT;
-                }
-                break;
-            case DATA:
-                smtpSend(sock, "DATA\r\n");
-                
-                if(smtpReceive(sock, buffer) <= 0)
-                {
-                    state = EXIT;
-                    continue;
-                }
 
-                extractResponse(buffer, &responseCode);
-                if(responseCode == 354)
-                {
-                    state++;
-                }
-                else
-                {
-                    state = EXIT;
-                }
-                break;
-            case CONTENT:
-                toSend = buildData(email->subject, email->body);
-                smtpSend(sock, toSend);
-                free(toSend);
+                    if(smtpReceive(sock, buffer) <= 0)
+                    {
+                        state = CRITICAL_ERROR;
+                        continue;
+                    }
 
-                if(smtpReceive(sock, buffer) <= 0)
-                {
-                    state = EXIT;
-                    continue;
-                }
+                    extractResponse(buffer, &responseCode);
+                    if(responseCode == 220)
+                    {
+                        state++;
+                    }
+                    else if(responseCode == 554)
+                    {
+                        printf("\nNo SMTP service here: %s:%i", email->host, email->port);
+                        state = CRITICAL_ERROR;
+                    }
+                    else
+                    {
+                        state = CRITICAL_ERROR;
+                    }
+                    break;
+                case HELLO:
+                    smtpSend(sock, "HELO client\r\n");
 
-                extractResponse(buffer, &responseCode);
-                if(responseCode == 250)
-                {
-                    state++;
-                }
-                else
-                {
-                    state = EXIT;
-                }
-                break;
-            case QUIT:
-                smtpSend(sock, "QUIT\r\n");
+                    if(smtpReceive(sock, buffer) <= 0)
+                    {
+                        state = CRITICAL_ERROR;
+                        continue;
+                    }
 
-                if(smtpReceive(sock, buffer) <= 0)
-                {
-                    state = EXIT;
-                    continue;
-                }
+                    extractResponse(buffer, &responseCode);
+                    if(responseCode == 250)
+                    {
+                        state++;
+                    }
+                    else
+                    {
+                        state = CRITICAL_ERROR;
+                    }
+                    break;
+                case MAIL_FROM:
+                    toSend = buildCommandWithParam("MAIL FROM", email->from);
+                    smtpSend(sock, toSend);
+                    free(toSend);
 
-                extractResponse(buffer, &responseCode);
-                if(responseCode == 221)
-                {
-                    state++;
-                }
-                else
-                {
+                    if(smtpReceive(sock, buffer) <= 0)
+                    {
+                        state = CRITICAL_ERROR;
+                        continue;
+                    }
+
+                    extractResponse(buffer, &responseCode);
+                    if(responseCode == 250)
+                    {
+                        state++;
+                    }
+                    else
+                    {
+                        state = CRITICAL_ERROR;
+                    }
+                    break;
+                case RCPT_TO:
+                    toSend = buildCommandWithParam("RCPT TO", email->to);
+                    smtpSend(sock, toSend);
+                    free(toSend);
+
+                    if(smtpReceive(sock, buffer) <= 0)
+                    {
+                        state = CRITICAL_ERROR;
+                        continue;
+                    }
+
+                    extractResponse(buffer, &responseCode);
+                    if(responseCode == 250 || responseCode == 251)
+                    {
+                        state++;
+                    }
+                    else if(responseCode == 450)
+                    {
+                        printf("We're greylisted. Will retry in 60 seconds.");
+                        fflush(stdout);
+                        state = HELLO;
+                        sleep(60);
+                    }
+                    else
+                    {
+                        state = CRITICAL_ERROR;
+                    }
+                    break;
+                case DATA:
+                    smtpSend(sock, "DATA\r\n");
+
+                    if(smtpReceive(sock, buffer) <= 0)
+                    {
+                        state = CRITICAL_ERROR;
+                        continue;
+                    }
+
+                    extractResponse(buffer, &responseCode);
+                    if(responseCode == 354)
+                    {
+                        state++;
+                    }
+                    else
+                    {
+                        state = CRITICAL_ERROR;
+                    }
+                    break;
+                case CONTENT:
+                    toSend = buildData(email->subject, email->body);
+                    smtpSend(sock, toSend);
+                    free(toSend);
+
+                    if(smtpReceive(sock, buffer) <= 0)
+                    {
+                        state = CRITICAL_ERROR;
+                        continue;
+                    }
+
+                    extractResponse(buffer, &responseCode);
+                    if(responseCode == 250)
+                    {
+                        state++;
+                        fflush(stdout);
+                    }
+                    else
+                    {
+                        state = CRITICAL_ERROR;
+                    }
+                    break;
+                case QUIT:
+                    smtpSend(sock, "QUIT\r\n");
+
+                    if(smtpReceive(sock, buffer) <= 0)
+                    {
+                        state = CRITICAL_ERROR;
+                        continue;
+                    }
+
+                    extractResponse(buffer, &responseCode);
+                    if(responseCode == 221)
+                    {
+                        state++;
+                    }
+                    else
+                    {
+                        printf("\nInvalid response code: %i", responseCode);
+                        state = CRITICAL_ERROR;
+                    }
+                    break;
+                case CRITICAL_ERROR:
                     state = EXIT;
-                }
-                break;
-            case EXIT:
-                continueAutomataLoop = false;
-                break;
-            default:
-                printf("\nInvalid state: %i", state);
-                continueAutomataLoop = false;
+                    exitCode = 1;
+                    break;
+                case EXIT:
+                    continueAutomataLoop = false;
+                    break;
+                default:
+                    printf("\nInvalid state: %i", state);
+                    state = CRITICAL_ERROR;
+            }
         }
     }
 
     destructEmail(email);
 
-    return 0;
+    return exitCode;
 }
