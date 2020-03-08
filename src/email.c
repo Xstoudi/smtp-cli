@@ -1,7 +1,5 @@
-#include <limits.h>
 #include <stdlib.h>
 #include <stdio.h>
-
 #include "email.h"
 
 // REF: https://www.rfc-editor.org/errata_search.php?rfc=3696&eid=1690

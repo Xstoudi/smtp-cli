@@ -1,5 +1,4 @@
 #include <sys/socket.h>
-#include <sys/types.h>
 #include <arpa/inet.h>
 #include <stdlib.h>
 #include <stdio.h>

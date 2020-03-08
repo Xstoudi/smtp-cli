@@ -1,13 +1,11 @@
 #define _GNU_SOURCE
-#include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
 
-int hostnameToIP(char* hostname , char* ip)
+int hostnameToIP(char* hostname, char* ip)
 {
     struct addrinfo* result;
     struct addrinfo hints;    
