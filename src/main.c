@@ -136,7 +136,6 @@ int main(int argc, char* argv[])
     struct argp argp = { options, parse_opt, NULL, NULL, NULL, NULL, NULL };
     if(argp_parse(&argp, argc, argv, ARGP_IN_ORDER, 0, email) != 0)
     {
-        printf("\nFail to parse command line arguments.");
         exitCode = 1;
     }
     else
