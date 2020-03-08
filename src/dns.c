@@ -7,7 +7,7 @@
 
 int hostnameToIP(char* hostname, char* ip)
 {
-    struct addrinfo* result;
+    struct addrinfo* result = NULL;
     struct addrinfo hints;    
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_UNSPEC;
@@ -18,7 +18,10 @@ int hostnameToIP(char* hostname, char* ip)
     {
         error = getnameinfo(result->ai_addr, result->ai_addrlen, ip, 16, NULL, 0, NI_NUMERICHOST);
     }
-    freeaddrinfo(result);
+    if(result != NULL)
+    {
+        freeaddrinfo(result);
+    }
     return error;
 }
 
