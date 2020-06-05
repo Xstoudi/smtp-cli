@@ -4,36 +4,66 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+#include <netdb.h>
 
-int initSocket()
+FILE* tcpConnect(const char *hostname, const char *port)
 {
-    return socket(AF_INET, SOCK_STREAM, 0);
-}
+    FILE* f = NULL;
+    int s;
+    struct addrinfo hints;
+    struct addrinfo* result;
+    struct addrinfo* rp;
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_flags = 0;
+    hints.ai_protocol = 0;
 
-int prepareServAddr(char* host, int port, struct sockaddr_in* servAddr)
-{
-    servAddr->sin_family = AF_INET;
-    servAddr->sin_port = htons(port);
-    return inet_pton(AF_INET, host, &servAddr->sin_addr);
-}
-
-int smtpConnect(int sock, struct sockaddr_in* servAddr)
-{
-    return connect(sock, (struct sockaddr*)servAddr, sizeof(struct sockaddr));
-}
-
-int smtpReceive(int sock, char buffer[2048])
-{
-    buffer = memset(buffer, 0, sizeof(char) * 2048);
-    int result = read(sock, buffer, sizeof(char) * 2048);
-    if(result <= 0)
-    {
-        printf("\nDisconnected from server.");
+    if(getaddrinfo(hostname, port, &hints, &result) != 0) {
+        return NULL;
+    } else {
+        for(rp = result; rp != NULL; rp = rp->ai_next) {
+            char ipname[INET_ADDRSTRLEN];
+            char servicename[6];
+            if(!getnameinfo(
+                    rp->ai_addr,
+                    rp->ai_addrlen,
+                    ipname,
+                    sizeof(ipname),
+                    servicename,
+                    sizeof(servicename),
+                    NI_NUMERICHOST|NI_NUMERICSERV
+            )) {
+                if((s = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol)) == -1){
+                    return NULL;
+                } else
+                {
+                    if (connect(s, rp->ai_addr, rp->ai_addrlen) != -1)
+                    {
+                        if ((f = fdopen(s, "r+")))
+                        {
+                            break;
+                        }
+                    } else {
+                        return NULL;
+                    }
+                }
+                close(s);
+            }
+        }
+        freeaddrinfo(result);
     }
-    return result;
+    return f;
 }
 
-void smtpSend(int sock, char* buffer)
+int smtpReceive(FILE* file, char buffer[2048])
+{
+    if(fgets(buffer, 2048, file) == NULL){
+        return 1;
+    }
+    return 0;
+}
+
+void smtpSend(FILE* file, char* buffer)
 {
     if(getenv("DEBUG"))
     {
@@ -43,7 +73,7 @@ void smtpSend(int sock, char* buffer)
     {
         printf(".");
     }
-    send(sock, buffer, strlen(buffer), 0);
+    fputs(buffer, file);
 }
 
 void extractResponse(char buffer[2048], int* responseCode)

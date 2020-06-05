@@ -13,6 +13,8 @@
 // REF: $ getconf HOST_NAME_MAX
 #define MAX_HOSTNAME_SIZE 64
 
+#define MAX_PORT_SIZE 5
+
 int initEmail(PtrEmail* emailPtr)
 {
     *emailPtr = malloc(sizeof(Email));
@@ -22,7 +24,7 @@ int initEmail(PtrEmail* emailPtr)
     email->subject = (char*) calloc((MAX_SUBJECT_SIZE + 1), sizeof(char));
     email->body = (char*) calloc((MAX_BODY_SIZE + 1), sizeof(char));
     email->host = (char*) calloc((MAX_HOSTNAME_SIZE + 1), sizeof(char));
-    email->port = 25;
+    email->port = (char*) calloc((MAX_PORT_SIZE + 1), sizeof(char));;
     if(
         email->to == NULL ||
         email->from == NULL ||
@@ -38,10 +40,11 @@ int initEmail(PtrEmail* emailPtr)
 
 void destructEmail(PtrEmail email)
 {
-    free(email->to);
+    /*free(email->to);
     free(email->from);
     free(email->subject);
     free(email->body);
     free(email->host);
+    free(email->port);*/
     free(email);
 }

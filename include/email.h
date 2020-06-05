@@ -6,7 +6,7 @@ typedef struct StructEmail
 	char* subject;
 	char* body;
 	char* host;
-	unsigned short port;
+	char* port;
 } Email;
 
 /* Email structure pointer. */

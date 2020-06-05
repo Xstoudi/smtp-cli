@@ -5,6 +5,7 @@
 #include <arpa/inet.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <netdb.h>
 #include "email.h"
 #include "smtp.h"
 #include "dns.h"
@@ -16,13 +17,13 @@ int parse_opt(int key, char* arg, struct argp_state* state)
     switch(key)
     {
         case 't':
-            strcpy(email->to, arg);
+            email->to = arg;
             break;
         case 'f':
-            strcpy(email->from, arg);
+            email->from = arg;
             break;
         case 's':
-            strcpy(email->subject, arg);
+            email->subject = arg;
             break;
         case 'b':
             file = fopen(arg, "r");
@@ -58,38 +59,18 @@ int parse_opt(int key, char* arg, struct argp_state* state)
                     break;
                 }
             }
-            strcpy(email->body, fileContent);
+            email->body = fileContent;
             if(fclose(file) != 0)
             {
                 printf("\nFail to close file content stream.");
                 return 1;
             }
-            free(fileContent);
             break;
         case 'h':
-            {
-                char* ipToCheck = calloc(strlen(arg) + 1, sizeof(char));
-                strcpy(ipToCheck, arg);
-                if(isValidIP(arg) == true)
-                {
-                    strcpy(email->host, ipToCheck);
-                }
-                else
-                {
-                    char* ip = calloc(16, sizeof(char));
-                    if(hostnameToIP(ipToCheck, ip) != 0)
-                    {
-                        printf("\nFail to parse host.");
-                        return 1;
-                    }
-                    strcpy(email->host, ip);
-                    free(ip);
-                }
-                free(ipToCheck);
-                break;
-            }
+            email->host = arg;
+            break;
         case 'p':
-            email->port = atoi(arg);
+            email->port = arg;
             break;
         case ARGP_KEY_SUCCESS:
             if(email->to[0] == '\0'
@@ -142,17 +123,17 @@ int main(int argc, char* argv[])
     {
         if(getenv("DEBUG"))
         {
-            printf("\nTo: %s\nFrom: %s\nSubject: %s\nBody: %s\nHost: %s\nPort: %i", email->to, email->from, email->subject, email->body, email->host, email->port);
+            printf("\nTo: %s\nFrom: %s\nSubject: %s\nBody: %s\nHost: %s\nPort: %i", email->to, email->from, email->subject, email->body, email->host, atoi(email->port));
         }
 
         // Port argument is optional
-        if(email->port == 0)
+        if(email->port[0] == "\0")
         {
-            email->port = 25;
+            email->port = "25";
         }
 
         SMTPState state = CONNECT;
-        int sock = 0;
+        FILE* f;
         char buffer[2048] = "";
         char* toSend;
         int responseCode = 0;
@@ -163,34 +144,13 @@ int main(int argc, char* argv[])
             switch(state)
             {
                 case CONNECT:
-                    sock = initSocket();
-                    if(sock < 0)
-                    {
-                        printf("\nSocket initialization error.");
+                    f = tcpConnect(email->host, email->port);
+                    if(f == NULL) {
                         state = CRITICAL_ERROR;
                         continue;
                     }
-                    printf("\nSuccessfully initializated socket.");
 
-                    struct sockaddr_in servAddr;
-                    if(prepareServAddr(email->host, email->port, &servAddr) <= 0)
-                    {
-                        printf("\nFailed to prepare servaddr.");
-                        state = CRITICAL_ERROR;
-                        continue;
-                    }
-                    printf("\nSuccessfully prepared servaddr.");
-
-                    if(smtpConnect(sock, &servAddr) < 0)
-                    {
-                        printf("\nFailed to connect to SMTP server.");
-                        state = CRITICAL_ERROR;
-                        continue;
-                    }
-                    printf("\nSuccessfully connected to SMTP server.");
-                    fflush(stdout);
-
-                    if(smtpReceive(sock, buffer) <= 0)
+                    if(smtpReceive(f, buffer) != 0)
                     {
                         state = CRITICAL_ERROR;
                         continue;
@@ -201,20 +161,15 @@ int main(int argc, char* argv[])
                     {
                         state++;
                     }
-                    else if(responseCode == 554)
-                    {
-                        printf("\nNo SMTP service here: %s:%i", email->host, email->port);
-                        state = CRITICAL_ERROR;
-                    }
                     else
                     {
                         state = CRITICAL_ERROR;
                     }
                     break;
                 case HELLO:
-                    smtpSend(sock, "HELO client\r\n");
+                    smtpSend(f, "HELO client\r\n");
 
-                    if(smtpReceive(sock, buffer) <= 0)
+                    if(smtpReceive(f, buffer) != 0)
                     {
                         state = CRITICAL_ERROR;
                         continue;
@@ -232,10 +187,10 @@ int main(int argc, char* argv[])
                     break;
                 case MAIL_FROM:
                     toSend = buildCommandWithParam("MAIL FROM", email->from);
-                    smtpSend(sock, toSend);
+                    smtpSend(f, toSend);
                     free(toSend);
 
-                    if(smtpReceive(sock, buffer) <= 0)
+                    if(smtpReceive(f, buffer) != 0)
                     {
                         state = CRITICAL_ERROR;
                         continue;
@@ -253,10 +208,10 @@ int main(int argc, char* argv[])
                     break;
                 case RCPT_TO:
                     toSend = buildCommandWithParam("RCPT TO", email->to);
-                    smtpSend(sock, toSend);
+                    smtpSend(f, toSend);
                     free(toSend);
 
-                    if(smtpReceive(sock, buffer) <= 0)
+                    if(smtpReceive(f, buffer) != 0)
                     {
                         state = CRITICAL_ERROR;
                         continue;
@@ -280,9 +235,9 @@ int main(int argc, char* argv[])
                     }
                     break;
                 case DATA:
-                    smtpSend(sock, "DATA\r\n");
+                    smtpSend(f, "DATA\r\n");
 
-                    if(smtpReceive(sock, buffer) <= 0)
+                    if(smtpReceive(f, buffer) != 0)
                     {
                         state = CRITICAL_ERROR;
                         continue;
@@ -300,10 +255,10 @@ int main(int argc, char* argv[])
                     break;
                 case CONTENT:
                     toSend = buildData(email->subject, email->body);
-                    smtpSend(sock, toSend);
+                    smtpSend(f, toSend);
                     free(toSend);
 
-                    if(smtpReceive(sock, buffer) <= 0)
+                    if(smtpReceive(f, buffer) != 0)
                     {
                         state = CRITICAL_ERROR;
                         continue;
@@ -321,9 +276,9 @@ int main(int argc, char* argv[])
                     }
                     break;
                 case QUIT:
-                    smtpSend(sock, "QUIT\r\n");
+                    smtpSend(f, "QUIT\r\n");
 
-                    if(smtpReceive(sock, buffer) <= 0)
+                    if(smtpReceive(f, buffer) != 0)
                     {
                         state = CRITICAL_ERROR;
                         continue;
