@@ -150,150 +150,43 @@ int main(int argc, char* argv[])
                         continue;
                     }
 
-                    if(smtpReceive(f, buffer) != 0)
-                    {
-                        state = CRITICAL_ERROR;
-                        continue;
-                    }
-
-                    extractResponse(buffer, &responseCode);
-                    if(responseCode == 220)
-                    {
-                        state++;
-                    }
-                    else
-                    {
-                        state = CRITICAL_ERROR;
-                    }
+                    handleState(f, buffer, &state);
                     break;
                 case HELLO:
                     smtpSend(f, "HELO client\r\n");
 
-                    if(smtpReceive(f, buffer) != 0)
-                    {
-                        state = CRITICAL_ERROR;
-                        continue;
-                    }
-
-                    extractResponse(buffer, &responseCode);
-                    if(responseCode == 250)
-                    {
-                        state++;
-                    }
-                    else
-                    {
-                        state = CRITICAL_ERROR;
-                    }
+                    handleState(f, buffer, &state);
                     break;
                 case MAIL_FROM:
                     toSend = buildCommandWithParam("MAIL FROM", email->from);
                     smtpSend(f, toSend);
                     free(toSend);
 
-                    if(smtpReceive(f, buffer) != 0)
-                    {
-                        state = CRITICAL_ERROR;
-                        continue;
-                    }
-
-                    extractResponse(buffer, &responseCode);
-                    if(responseCode == 250)
-                    {
-                        state++;
-                    }
-                    else
-                    {
-                        state = CRITICAL_ERROR;
-                    }
+                    handleState(f, buffer, &state);
                     break;
                 case RCPT_TO:
                     toSend = buildCommandWithParam("RCPT TO", email->to);
                     smtpSend(f, toSend);
                     free(toSend);
 
-                    if(smtpReceive(f, buffer) != 0)
-                    {
-                        state = CRITICAL_ERROR;
-                        continue;
-                    }
-
-                    extractResponse(buffer, &responseCode);
-                    if(responseCode == 250 || responseCode == 251)
-                    {
-                        state++;
-                    }
-                    else if(responseCode == 450)
-                    {
-                        printf("We're greylisted. Will retry in 60 seconds.");
-                        fflush(stdout);
-                        state = HELLO;
-                        sleep(60);
-                    }
-                    else
-                    {
-                        state = CRITICAL_ERROR;
-                    }
+                    handleState(f, buffer, &state);
                     break;
                 case DATA:
                     smtpSend(f, "DATA\r\n");
 
-                    if(smtpReceive(f, buffer) != 0)
-                    {
-                        state = CRITICAL_ERROR;
-                        continue;
-                    }
-
-                    extractResponse(buffer, &responseCode);
-                    if(responseCode == 354)
-                    {
-                        state++;
-                    }
-                    else
-                    {
-                        state = CRITICAL_ERROR;
-                    }
+                    handleState(f, buffer, &state);
                     break;
                 case CONTENT:
                     toSend = buildData(email->subject, email->body);
                     smtpSend(f, toSend);
                     free(toSend);
 
-                    if(smtpReceive(f, buffer) != 0)
-                    {
-                        state = CRITICAL_ERROR;
-                        continue;
-                    }
-
-                    extractResponse(buffer, &responseCode);
-                    if(responseCode == 250)
-                    {
-                        state++;
-                        fflush(stdout);
-                    }
-                    else
-                    {
-                        state = CRITICAL_ERROR;
-                    }
+                    handleState(f, buffer, &state);
                     break;
                 case QUIT:
                     smtpSend(f, "QUIT\r\n");
 
-                    if(smtpReceive(f, buffer) != 0)
-                    {
-                        state = CRITICAL_ERROR;
-                        continue;
-                    }
-
-                    extractResponse(buffer, &responseCode);
-                    if(responseCode == 221)
-                    {
-                        state++;
-                    }
-                    else
-                    {
-                        printf("\nInvalid response code: %i", responseCode);
-                        state = CRITICAL_ERROR;
-                    }
+                    handleState(f, buffer, &state);
                     break;
                 case CRITICAL_ERROR:
                     state = EXIT;

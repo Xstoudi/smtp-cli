@@ -5,6 +5,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <netdb.h>
+#include "smtp.h"
 
 FILE* tcpConnect(const char *hostname, const char *port)
 {
@@ -122,4 +123,31 @@ char* buildData(char* subject, char* body)
     strcat(data, body);
     strcat(data, finalPoint);
     return data;
+}
+
+void handleState(FILE* f, char buffer[1024], SMTPState* state)
+{
+    if(smtpReceive(f, buffer) != 0)
+    {
+        *state = CRITICAL_ERROR;
+        return;
+    }
+
+    int responseCode = 0;
+    extractResponse(buffer, &responseCode);
+    if(responseCode == 220 || responseCode == 221 || responseCode == 250 || responseCode == 251 || responseCode == 354)
+    {
+        (*state)++;
+    }
+    else if(responseCode == 450)
+    {
+        printf("We're greylisted. Will retry in 60 seconds.");
+        fflush(stdout);
+        *state = HELLO;
+        sleep(60);
+    }
+    else
+    {
+        *state = CRITICAL_ERROR;
+    }
 }

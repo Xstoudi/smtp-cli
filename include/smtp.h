@@ -27,3 +27,5 @@ void extractResponse(char buffer[2048], int* responseCode);
 char* buildCommandWithParam(char* field, char* value);
 /* Correctly build content to be sent. Returns the builded content. */
 char* buildData(char* subject, char* body);
+
+void handleState(FILE* f, char buffer[1024], SMTPState* state);
