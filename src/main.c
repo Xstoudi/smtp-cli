@@ -8,7 +8,6 @@
 #include <netdb.h>
 #include "email.h"
 #include "smtp.h"
-#include "dns.h"
 
 int parse_opt(int key, char* arg, struct argp_state* state)
 {
