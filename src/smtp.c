@@ -36,7 +36,10 @@ FILE* tcpConnect(const char *hostname, const char *port)
             )) {
                 if((s = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol)) == -1){
                     return NULL;
-                } else
+
+                    printf("fail1");
+                }
+                else
                 {
                     if (connect(s, rp->ai_addr, rp->ai_addrlen) != -1)
                     {

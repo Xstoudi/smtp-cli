@@ -121,22 +121,22 @@ int main(int argc, char* argv[])
     }
     else
     {
+        // Port argument is optional
+        if(email->port[0] == '\0')
+        {
+            email->port = "25";
+        }
+
         if(getenv("DEBUG"))
         {
             printf("\nTo: %s\nFrom: %s\nSubject: %s\nBody: %s\nHost: %s\nPort: %i", email->to, email->from, email->subject, email->body, email->host, atoi(email->port));
-        }
-
-        // Port argument is optional
-        if(email->port[0] == "\0")
-        {
-            email->port = "25";
         }
 
         SMTPState state = CONNECT;
         FILE* f;
         char buffer[2048] = "";
         char* toSend;
-        int responseCode = 0;
+
 
         bool continueAutomataLoop = true;
         while(continueAutomataLoop == true)
